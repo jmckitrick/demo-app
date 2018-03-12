@@ -7,7 +7,8 @@
             [markdown.core :refer [md->html]]
             [ajax.core :refer [GET POST]]
             [demo-app.ajax :refer [load-interceptors!]]
-            [demo-app.events])
+            [demo-app.events]
+            [demo-app.websockets :as ws])
   (:import goog.History))
 
 (defn nav-link [uri title page]
@@ -35,6 +36,39 @@
     [:div.col-md-12
      [:img {:src (str js/context "/img/warning_clojure.png")}]]]])
 
+(defonce messages (r/atom []))
+
+(defn message-list []
+  [:ul
+   (for [[i message] (map-indexed vector @messages)]
+     ^{:key i}
+     [:li message])])
+
+(defn update-text [atom value]
+  (js/console.log "Atom was" @atom)
+  (reset! atom value)
+  (js/console.log "Atom is" @atom))
+
+(defn message-input []
+ (let [value (r/atom nil)]
+   (fn []
+     (js/console.log "Rendering" @value)
+     [:input.form-control
+      {:type :text
+       :placeholder "type in a message and press enter"
+       :value @value
+       ;;:on-change #(update-text value (-> % .-target .-value))
+       :on-change #(do
+                     (js/console.log "Atom" value)
+                     (js/console.log "Atom was" @value)
+                     (reset! value (-> % .-target .-value))
+                     (js/console.log "Atom is" @value))
+       :on-key-down
+       #(when (= (.-keyCode %) 13)
+          (ws/send-transit-msg!
+           {:message @value})
+          (reset! value nil))}])))
+
 (defn button-component-1 []
   [:button
    {:on-click #(rf/dispatch [:events/ajax-1])}
@@ -55,10 +89,24 @@
     [button-component-2]
     [:div
      (pr-str @(rf/subscribe [:subs/service-1-data]))]]
+   [:div.row
+    [:div.col-md-12
+     [:h2 "Welcome to chat"]]]
+   [:div.row
+    [:div.col-sm-6
+     [message-list]]]
+   [:div.row
+    [:div.col-sm-6
+     [message-input]]]
    (when-let [docs @(rf/subscribe [:docs])]
      [:div.row>div.col-sm-12
       [:div {:dangerouslySetInnerHTML
              {:__html (md->html docs)}}]])])
+
+(defn update-messages! [{:keys [message] :as m}]
+  (js/console.log "Update messages with m" m)
+  (js/console.log "Update messages with message" message)
+  (swap! messages #(vec (take 10 (conj % message)))))
 
 (def pages
   {:home #'home-page
@@ -92,6 +140,7 @@
 
 ;; -------------------------
 ;; Initialize app
+
 (defn fetch-docs! []
   (GET "/docs" {:handler #(rf/dispatch [:set-docs %])}))
 
@@ -100,6 +149,7 @@
   (r/render [#'page] (.getElementById js/document "app")))
 
 (defn init! []
+  (ws/make-websocket! (str "ws://" (.-host js/location) "/ws") update-messages!)
   (rf/dispatch-sync [:initialize-db])
   (load-interceptors!)
   (fetch-docs!)

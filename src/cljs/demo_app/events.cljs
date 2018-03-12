@@ -54,8 +54,8 @@
                  :uri "/api/plus"
                  :params {:x 1 :y 2}
                  :timeout 8000
-                 ;;:response-format (ajax/json-response-format)
-                 :response-format (ajax/transit-response-format)
+                 :response-format (ajax/json-response-format)
+                 ;;:response-format (ajax/transit-response-format)
                  :on-success [:events/good-service-1]
                  :on-failure [:events/bad-ajax]}}))
 
