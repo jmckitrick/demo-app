@@ -10,6 +10,7 @@
                  [compojure "1.6.0"]
                  [conman "0.7.6"]
                  [cprop "0.1.11"]
+                 [day8.re-frame/http-fx "0.1.5"]
                  [funcool/struct "1.2.0"]
                  [luminus-immutant "0.2.4"]
                  [luminus-migrations "0.5.0"]
@@ -38,7 +39,7 @@
                  [selmer "1.11.7"]]
 
   :min-lein-version "2.0.0"
-  
+
   :source-paths ["src/clj" "src/cljc"]
   :test-paths ["test/clj"]
   :resource-paths ["resources" "target/cljsbuild"]
@@ -58,7 +59,7 @@
    :css-dirs ["resources/public/css"]
    :nrepl-middleware
    [cemerick.piggieback/wrap-cljs-repl cider.nrepl/cider-middleware]}
-  
+
 
   :profiles
   {:uberjar {:omit-source true
@@ -76,8 +77,8 @@
                  :closure-warnings
                  {:externs-validation :off :non-standard-jsdoc :off}
                  :externs ["react/externs/react.js"]}}}}
-             
-             
+
+
              :aot :all
              :uberjar-name "demo-app.jar"
              :source-paths ["env/prod/clj"]
@@ -115,9 +116,9 @@
                       :pretty-print true
                       :closure-defines {"re_frame.trace.trace_enabled_QMARK_" true}
                       :preloads [day8.re-frame-10x.preload]}}}}
-                  
-                  
-                  
+
+
+
                   :doo {:build "test"}
                   :source-paths ["env/dev/clj"]
                   :resource-paths ["env/dev/resources"]
@@ -135,7 +136,7 @@
                       :main "demo-app.doo-runner"
                       :optimizations :whitespace
                       :pretty-print true}}}}
-                  
+
                   }
    :profiles/dev {}
    :profiles/test {}})

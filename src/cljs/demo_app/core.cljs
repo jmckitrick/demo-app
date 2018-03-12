@@ -35,10 +35,26 @@
     [:div.col-md-12
      [:img {:src (str js/context "/img/warning_clojure.png")}]]]])
 
+(defn button-component-1 []
+  [:button
+   {:on-click #(rf/dispatch [:events/ajax-1])}
+   "Click me 1"])
+
+(defn button-component-2 []
+  [:button
+   {:on-click #(rf/dispatch [:events/service-1])}
+   "Click me 2"])
+
 (defn home-page []
   [:div.container
    [:div.row>div.col-sm-12
-    [:h2.alert.alert-info "Tip: try pressing CTRL+H to open re-frame tracing menu"]]
+    [:h2.alert.alert-info "Tip: try pressing CTRL+H to open re-frame tracing menu"]
+    [button-component-1]
+    [:div
+     (pr-str @(rf/subscribe [:subs/ajax-data]))]
+    [button-component-2]
+    [:div
+     (pr-str @(rf/subscribe [:subs/service-1-data]))]]
    (when-let [docs @(rf/subscribe [:docs])]
      [:div.row>div.col-sm-12
       [:div {:dangerouslySetInnerHTML
