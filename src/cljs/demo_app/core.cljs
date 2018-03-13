@@ -2,12 +2,12 @@
   (:require [reagent.core :as r]
             [re-frame.core :as rf]
             [secretary.core :as secretary]
-            [goog.events :as events]
+            [goog.events :as gevents]
             [goog.history.EventType :as HistoryEventType]
             [markdown.core :refer [md->html]]
             [ajax.core :refer [GET POST]]
             [demo-app.ajax :refer [load-interceptors!]]
-            [demo-app.events]
+            [demo-app.events :as events]
             [demo-app.websockets :as ws])
   (:import goog.History))
 
@@ -44,25 +44,14 @@
      ^{:key i}
      [:li message])])
 
-(defn update-text [atom value]
-  (js/console.log "Atom was" @atom)
-  (reset! atom value)
-  (js/console.log "Atom is" @atom))
-
 (defn message-input []
  (let [value (r/atom nil)]
    (fn []
-     (js/console.log "Rendering" @value)
      [:input.form-control
       {:type :text
        :placeholder "type in a message and press enter"
        :value @value
-       ;;:on-change #(update-text value (-> % .-target .-value))
-       :on-change #(do
-                     (js/console.log "Atom" value)
-                     (js/console.log "Atom was" @value)
-                     (reset! value (-> % .-target .-value))
-                     (js/console.log "Atom is" @value))
+       :on-change #(reset! value (-> % .-target .-value))
        :on-key-down
        #(when (= (.-keyCode %) 13)
           (ws/send-transit-msg!
@@ -71,13 +60,25 @@
 
 (defn button-component-1 []
   [:button
-   {:on-click #(rf/dispatch [:events/ajax-1])}
+   {:on-click #(rf/dispatch [::events/ajax-1])}
    "Click me 1"])
 
 (defn button-component-2 []
   [:button
-   {:on-click #(rf/dispatch [:events/service-1])}
+   {:on-click #(rf/dispatch [::events/service-1])}
    "Click me 2"])
+
+(defn chat-component []
+  [:div
+   [:div.row
+    [:div.col-md-12
+     [:h2 "Welcome to chat"]]]
+   [:div.row
+    [:div.col-sm-6
+     [message-list]]]
+   [:div.row
+    [:div.col-sm-6
+     [message-input]]]])
 
 (defn home-page []
   [:div.container
@@ -89,15 +90,7 @@
     [button-component-2]
     [:div
      (pr-str @(rf/subscribe [:subs/service-1-data]))]]
-   [:div.row
-    [:div.col-md-12
-     [:h2 "Welcome to chat"]]]
-   [:div.row
-    [:div.col-sm-6
-     [message-list]]]
-   [:div.row
-    [:div.col-sm-6
-     [message-input]]]
+   [chat-component]
    (when-let [docs @(rf/subscribe [:docs])]
      [:div.row>div.col-sm-12
       [:div {:dangerouslySetInnerHTML
@@ -132,7 +125,7 @@
 ;; must be called after routes have been defined
 (defn hook-browser-navigation! []
   (doto (History.)
-    (events/listen
+    (gevents/listen
       HistoryEventType/NAVIGATE
       (fn [event]
         (secretary/dispatch! (.-token event))))

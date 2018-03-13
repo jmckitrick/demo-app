@@ -22,7 +22,7 @@
     (assoc db :docs docs)))
 
 (reg-event-fx
- :events/ajax-1
+ ::ajax-1
  (fn [{:keys [db]} _]
    (js/console.log "Get ajax")
    {:db (assoc db :spinner true)
@@ -46,7 +46,7 @@
    (assoc db :spinner false)))
 
 (reg-event-fx
- :events/service-1
+ ::service-1
  (fn [{:keys [db]} _]
    (js/console.log "Get ajax")
    {:db (assoc db :spinner true)
