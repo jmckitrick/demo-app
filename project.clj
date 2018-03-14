@@ -4,6 +4,7 @@
   :url "http://example.com/FIXME"
 
   :dependencies [[buddy "2.0.0"]
+                 [camel-snake-kebab "0.4.0"]
                  [cider/cider-nrepl "0.15.1"]
                  [clj-time "0.14.2"]
                  [cljs-ajax "0.7.3"]
