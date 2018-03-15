@@ -119,15 +119,22 @@
         (wrap-authentication backend)
         (wrap-authorization backend))))
 
+(defn wrap-session-auth [handler]
+  (let [backend session-backend]
+    (-> handler
+        (wrap-authentication backend)
+        (wrap-authorization backend))))
+
 (defn wrap-base [handler]
   (-> ((:middleware defaults) handler)
-      wrap-auth
+      #_wrap-auth
+      wrap-session-auth
       wrap-webjars
       wrap-flash
       (wrap-session {:cookie-attrs {:http-only true}})
       (wrap-defaults
-        (-> site-defaults
-            (assoc-in [:security :anti-forgery] false)
-            (dissoc :session)))
+       (-> site-defaults
+           (assoc-in [:security :anti-forgery] false)
+           (dissoc :session)))
       wrap-context
       wrap-internal-error))

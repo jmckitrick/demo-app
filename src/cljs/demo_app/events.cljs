@@ -14,6 +14,7 @@
 (reg-event-db
   :set-active-page
   (fn [db [_ page]]
+    (js/console.log "Active page is" page)
     (assoc db :page page)))
 
 (reg-event-db
@@ -64,6 +65,38 @@
  (fn [db [_ data]]
    (js/console.log "Got good service-1")
    (assoc db :service-1-data data :spinner false)))
+
+(reg-event-fx
+ ::login
+ (fn [{:keys [db]} [_ username password]]
+   (js/console.log "Login with" username password)
+   (let [form-data (js/FormData.)]
+     (.append form-data "username" username)
+     (.append form-data "password" password)
+     #_(.append form-data {:username username :password password})
+     {:http-xhrio {:uri "/login"
+                   :method :post
+                   :timeout 10000
+                   ;;:body {:username username :password password}
+                   ;;:body form-data #_{:username username :password password}
+                   :params {:username username :password password}
+                   ;;:params form-data
+                   :format (ajax/json-request-format {:keywords? true})
+                   :response-format (ajax/text-response-format)
+                   :on-success [:events/login-success]
+                   :on-failure [:events/login-failure]}})))
+
+(reg-event-db
+ :events/login-success
+ (fn [db [_ data]]
+   (js/console.log "Login success" data)
+   (assoc db :token data)))
+
+(reg-event-db
+ :events/login-failure
+ (fn [db [_ data]]
+   (js/console.log "Login failed!" data)
+   (dissoc db :token)))
 
 ;;subscriptions
 
