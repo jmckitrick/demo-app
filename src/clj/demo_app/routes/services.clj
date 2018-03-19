@@ -2,6 +2,7 @@
   (:require [ring.util.http-response :refer :all]
             [clojure.tools.logging :as log]
             [compojure.api.sweet :refer :all]
+            [demo-app.middleware :as middleware]
             #_[schema.core :as s]
             [compojure.api.meta :refer [restructure-param]]
             [buddy.auth.accessrules :refer [restrict]]
@@ -15,6 +16,12 @@
 (defn wrap-restricted [handler rule]
   (restrict handler {:handler  rule
                      :on-error access-error}))
+
+(defn check-auth? [req]
+  (log/debug "Check auth on req")
+  (log/debug ":identity" (:identity req))
+  (log/debug ":session" (:session req))
+  (authenticated? req))
 
 (defmethod restructure-param :auth-rules
   [_ rule acc]
@@ -44,9 +51,9 @@
                             :description "Admin Services"}}}}
 
    (GET "/authenticated" []
-     :auth-rules authenticated?
+     :auth-rules check-auth? ;;authenticated?
      :current-user user
-     ;;:middleware [middleware-goes-here]
+     :middleware [middleware/wrap-session-auth]
      ;;:header-params [auth-headers-here-with-specs]
      (ok {:user user}))
 
@@ -63,12 +70,30 @@
      (log/debug "Got form params" (:form-params req))
      (log/debug "Got content type" (:content-type req))
      (log/debug "Got headers" (:headers req))
+     (log/debug "Got session" (:session req))
      #_(ok {:token "a-token"})
      (let [{:keys [session]} req]
+       (log/debug "a token returns:"
+        (-> (ok "a-token")
+            (assoc :identity {:user "jcm-identity"})
+            (assoc :session (assoc session :user "jcm-session"))
+            (assoc-in [:session :identity] {:user "jcm-session-identity"})
+            (assoc :cookies {:my-cookie "yum"})))
        (-> (ok "a-token")
+           (assoc :identity {:user "jcm-identity"})
            (assoc :session (assoc session :user "jcm-session"))
-           (assoc :identity "jcm-identity")
+           (assoc-in [:session :identity] {:user "jcm-session-identity"})
            (assoc :cookies {:my-cookie "yum"}))))
+
+   (context "/api2" []
+     :coercion :spec
+     :auth-rules authenticated?
+     :current-user user
+
+     (GET "/foo" []
+       :return       ::x
+       :summary      "foo"
+       (ok 1)))
 
    (context "/api" []
      :tags ["thingie"]

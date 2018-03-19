@@ -40,7 +40,7 @@
 
 (defn button-login [username password]
   [:button.button-default
-   {:on-click #(rf/dispatch [::events/login @username @password])}
+   {:on-click #(rf/dispatch [:login username password])}
    "Login"])
 
 (defn secret-page []
@@ -63,7 +63,7 @@
          :placeholder "password"
          :value @password
          :on-change #(reset! password (-> % .-target .-value))}]
-       [button-login username password]])))
+       [button-login @username @password]])))
 
 (defonce messages (r/atom []))
 
@@ -89,13 +89,22 @@
 
 (defn button-component-1 []
   [:button
-   {:on-click #(rf/dispatch [::events/ajax-1])}
+   {:on-click #(rf/dispatch [:ajax-1])}
    "Click me 1"])
 
 (defn button-component-2 []
   [:button
-   {:on-click #(rf/dispatch [::events/service-1])}
+   {:on-click #(rf/dispatch [:service-1])}
    "Click me 2"])
+
+(defn do-it [e]
+  (js/console.log "Got" e "for auth test 1")
+  (rf/dispatch [:auth-test-1]))
+
+(defn button-component-auth []
+  [:button
+   {:on-click #(do-it %)}
+   "Click me AUTH"])
 
 (defn chat-component []
   [:div
@@ -115,10 +124,11 @@
     [:h2.alert.alert-info "Tip: try pressing CTRL+H to open re-frame tracing menu"]
     [button-component-1]
     [:div
-     (pr-str @(rf/subscribe [:subs/ajax-data]))]
+     (pr-str @(rf/subscribe [:ajax-data]))]
     [button-component-2]
     [:div
-     (pr-str @(rf/subscribe [:subs/service-1-data]))]]
+     (pr-str @(rf/subscribe [:service-1-data]))]
+    [button-component-auth]]
    #_[chat-component]
    (when-let [docs @(rf/subscribe [:docs])]
      [:div.row>div.col-sm-12

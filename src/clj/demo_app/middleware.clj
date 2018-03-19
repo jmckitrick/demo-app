@@ -97,8 +97,12 @@
     {:status 403
      :title (str "Access to " (:uri request) " is not authorized")}))
 
+(defn check-auth? [req]
+  (log/debug "Middleware check auth on req" req)
+  (authenticated? req))
+
 (defn wrap-restricted [handler]
-  (restrict handler {:handler authenticated?
+  (restrict handler {:handler check-auth? ;;authenticated?
                      :on-error on-error}))
 
 (def secret (random-bytes 32))
@@ -119,15 +123,26 @@
         (wrap-authentication backend)
         (wrap-authorization backend))))
 
+(defn wrap-auths [handler]
+  (let [backends [session-backend token-backend]]
+    (-> handler
+        (wrap-authentication backends)
+        (wrap-authorization (first backends)))))
+
 (defn wrap-session-auth [handler]
-  (let [backend session-backend]
+  (let [backend (session-backend)]
     (-> handler
         (wrap-authentication backend)
         (wrap-authorization backend))))
+#_
+(defn my-auth-mw
+  [handler]
+  (wrap-authentication handler auth-backend))
 
 (defn wrap-base [handler]
   (-> ((:middleware defaults) handler)
-      #_wrap-auth
+      ;;wrap-auth
+      ;;wrap-auths
       wrap-session-auth
       wrap-webjars
       wrap-flash

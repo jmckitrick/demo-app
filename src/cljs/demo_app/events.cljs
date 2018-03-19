@@ -23,7 +23,7 @@
     (assoc db :docs docs)))
 
 (reg-event-fx
- ::ajax-1
+ :ajax-1
  (fn [{:keys [db]} _]
    (js/console.log "Get ajax")
    {:db (assoc db :spinner true)
@@ -31,23 +31,23 @@
                  :uri "http://ip.jsontest.com/"
                  :timeout 8000
                  :response-format (ajax/json-response-format)
-                 :on-success [:events/good-ajax]
-                 :on-failure [:events/bad-ajax]}}))
+                 :on-success [:good-ajax]
+                 :on-failure [:bad-ajax]}}))
 
 (reg-event-db
- :events/good-ajax
+ :good-ajax
  (fn [db [_ data]]
    (js/console.log "Got good ajax")
    (assoc db :ajax-data data :spinner false)))
 
 (reg-event-db
- :events/bad-ajax
+ :bad-ajax
  (fn [db [_ data]]
    (js/console.log "Got bad ajax" data)
    (assoc db :spinner false)))
 
 (reg-event-fx
- ::service-1
+ :service-1
  (fn [{:keys [db]} _]
    (js/console.log "Get ajax")
    {:db (assoc db :spinner true)
@@ -57,17 +57,17 @@
                  :timeout 8000
                  :response-format (ajax/json-response-format)
                  ;;:response-format (ajax/transit-response-format)
-                 :on-success [:events/good-service-1]
-                 :on-failure [:events/bad-ajax]}}))
+                 :on-success [:good-service-1]
+                 :on-failure [:bad-ajax]}}))
 
 (reg-event-db
- :events/good-service-1
+ :good-service-1
  (fn [db [_ data]]
    (js/console.log "Got good service-1")
    (assoc db :service-1-data data :spinner false)))
 
 (reg-event-fx
- ::login
+ :login
  (fn [{:keys [db]} [_ username password]]
    (js/console.log "Login with" username password)
    (let [form-data (js/FormData.)]
@@ -83,25 +83,51 @@
                    ;;:params form-data
                    :format (ajax/json-request-format {:keywords? true})
                    :response-format (ajax/text-response-format)
-                   :on-success [:events/login-success]
-                   :on-failure [:events/login-failure]}})))
+                   :on-success [:login-success]
+                   :on-failure [:login-failure]}})))
 
 (reg-event-db
- :events/login-success
+ :login-success
  (fn [db [_ data]]
    (js/console.log "Login success" data)
    (assoc db :token data)))
 
 (reg-event-db
- :events/login-failure
+ :login-failure
  (fn [db [_ data]]
    (js/console.log "Login failed!" data)
    (dissoc db :token)))
 
+(reg-event-db
+ :auth-success
+ (fn [db [_ data]]
+   (js/console.log "Auth success" data)
+   db))
+
+(reg-event-db
+ :auth-failure
+ (fn [db [_ data]]
+   (js/console.log "Auth fail" data)
+   db))
+
+(reg-event-fx
+ :auth-test-1
+ (fn [{:keys [db]} [_ data]]
+   (js/console.log "Auth test 1" data)
+   {:db (assoc db :spinner :true)
+    :http-xhrio {:uri "/authenticated"
+                 :method :get
+                 :timeout 10000
+                 :with-credentials true
+                 ;;:format (ajax/json-request-format {:keywords? true})
+                 :response-format (ajax/text-response-format)
+                 :on-success [:auth-success]
+                 :on-failure [:auth-failure]}}))
+
 ;;subscriptions
 
 (reg-sub
-  :page
+ :page
   (fn [db _]
     (:page db)))
 
@@ -111,11 +137,11 @@
     (:docs db)))
 
 (reg-sub
- :subs/ajax-data
+ :ajax-data
  (fn [db]
    (:ajax-data db)))
 
 (reg-sub
- :subs/service-1-data
+ :service-1-data
  (fn [db]
    (:service-1-data db)))
