@@ -43,6 +43,11 @@
    {:on-click #(rf/dispatch [:login username password])}
    "Login"])
 
+(defn button-login-token [username password]
+  [:button.button-default
+   {:on-click #(rf/dispatch [:login-token username password])}
+   "Login TOKEN"])
+
 (defn secret-page []
   [:div.container
    [:div.row>div.col-sm-12
@@ -97,14 +102,28 @@
    {:on-click #(rf/dispatch [:service-1])}
    "Click me 2"])
 
-(defn do-it [e]
-  (js/console.log "Got" e "for auth test 1")
-  (rf/dispatch [:auth-test-1]))
+(defn button-component-login []
+  [button-login "foo" "bar"])
 
 (defn button-component-auth []
   [:button
-   {:on-click #(do-it %)}
-   "Click me AUTH"])
+   {:on-click #(rf/dispatch [:auth-test-1])}
+   "Click me to test AUTH-required service call with SESSION"])
+
+(defn button-component-login-token []
+  [button-login-token "foo" "bar"])
+
+(defn button-component-auth-2 [with-token-header?]
+  [:button
+   {:on-click #(rf/dispatch [:auth-test-2 with-token-header?])}
+   (if with-token-header?
+     "Click me to test AUTH-required service call with TOKENS"
+     "Click me to test AUTH-required service call WITHOUT TOKENS")])
+
+(defn button-component-logout []
+  [:button
+   {:on-click #(rf/dispatch [:logout])}
+   "Click me to LOG OUT"])
 
 (defn chat-component []
   [:div
@@ -122,14 +141,40 @@
   [:div.container
    [:div.row>div.col-sm-12
     [:h2.alert.alert-info "Tip: try pressing CTRL+H to open re-frame tracing menu"]
+    (if @(rf/subscribe [:logged-in])
+      (do
+        (js/console.log "Logged in")
+        [:div "You are LOGGED IN"])
+      (js/console.log "NOT logged in"))
     [button-component-1]
     [:div
      (pr-str @(rf/subscribe [:ajax-data]))]
     [button-component-2]
     [:div
      (pr-str @(rf/subscribe [:service-1-data]))]
-    [button-component-auth]]
-   #_[chat-component]
+    [:div
+     [button-component-login]]
+    [:div
+     [button-component-auth]]
+    (if @(rf/subscribe [:logged-in])
+      [:div "Logged in!"]
+      [:div "Unauthorized"])
+    [:div (pr-str @(rf/subscribe [:auth-test-data]))]
+    [:div
+     [button-component-logout]]
+    [:div
+     [button-component-login-token]]
+    (when @(rf/subscribe [:token])
+      [:div
+       "Token: " [:span (pr-str @(rf/subscribe [:token]))]])
+    [:div
+     [button-component-auth-2 true]]
+    [:div
+     [button-component-auth-2 false]]
+    [:div (pr-str @(rf/subscribe [:auth-test-token-data]))]
+    (when @(rf/subscribe [:auth-failed])
+      [:div [:strong "Auth failed!"]])]
+   [chat-component]
    (when-let [docs @(rf/subscribe [:docs])]
      [:div.row>div.col-sm-12
       [:div {:dangerouslySetInnerHTML
@@ -189,7 +234,7 @@
   (r/render [#'page] (.getElementById js/document "app")))
 
 (defn init! []
-  #_(ws/make-websocket! (str "ws://" (.-host js/location) "/ws") update-messages!)
+  (ws/make-websocket! (str "ws://" (.-host js/location) "/ws") update-messages!)
   (rf/dispatch-sync [:initialize-db])
   (load-interceptors!)
   (fetch-docs!)

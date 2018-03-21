@@ -3,10 +3,11 @@
             [clojure.tools.logging :as log]
             [compojure.api.sweet :refer :all]
             [demo-app.middleware :as middleware]
-            #_[schema.core :as s]
             [compojure.api.meta :refer [restructure-param]]
             [buddy.auth.accessrules :refer [restrict]]
             [buddy.auth :refer [authenticated?]]
+            [buddy.sign.jwt :as jwt]
+            [cheshire.core :as json]
             [clojure.spec.alpha :as s]
             [spec-tools.spec :as spec]))
 
@@ -19,8 +20,15 @@
 
 (defn check-auth? [req]
   (log/debug "Check auth on req")
-  (log/debug ":identity" (:identity req))
-  (log/debug ":session" (:session req))
+  (log/debug ":session ?" (:session req))
+  (log/debug ":identity ?" (:identity req))
+  (authenticated? req))
+
+(defn check-auth-2? [req]
+  (log/debug "Check auth TOKEN on req")
+  (log/debug ":headers ?" (:headers req))
+  (log/debug ":session ?" (:session req))
+  (log/debug ":identity ?" (:identity req))
   (authenticated? req))
 
 (defmethod restructure-param :auth-rules
@@ -40,7 +48,7 @@
 (s/def ::username spec/string?)
 (s/def ::password spec/string?)
 (s/def ::token spec/string?)
-;;(s/def ::token (s/keys :req-un [::token]))
+(s/def ::token-map (s/keys :req-un [::token]))
 
 (def service-routes
   (api
@@ -48,22 +56,21 @@
               :spec "/swagger.json"
               :data {:info {:version "1.0.0"
                             :title "TST Agent API"
-                            :description "Admin Services"}}}}
+                            :description "Admin Services"}
+                     :tags [{:name "thingie" :description "Requires a header token for authorization"}
+                            {:name "thingie2" :description "Requires a header token for authorization"}]}}}
 
    (GET "/authenticated" []
+     :middleware [middleware/wrap-session-auth]
      :auth-rules check-auth? ;;authenticated?
      :current-user user
-     :middleware [middleware/wrap-session-auth]
-     ;;:header-params [auth-headers-here-with-specs]
      (ok {:user user}))
 
    (POST "/login" req
      :coercion :spec
-     :summary "login and return a token"
+     :summary "login and start a session"
      :body-params [username :- ::username
                    password :- ::password]
-     :return ::token
-     ;;(log/debug "Got req" (keys req))
      (log/debug "Got params" (:params req))
      (log/debug "Got body params" (:body-params req))
      (log/debug "Got route params" (:route-params req))
@@ -71,37 +78,43 @@
      (log/debug "Got content type" (:content-type req))
      (log/debug "Got headers" (:headers req))
      (log/debug "Got session" (:session req))
-     #_(ok {:token "a-token"})
      (let [{:keys [session]} req]
-       (log/debug "a token returns:"
-        (-> (ok "a-token")
-            (assoc :identity {:user "jcm-identity"})
-            (assoc :session (assoc session :user "jcm-session"))
-            (assoc-in [:session :identity] {:user "jcm-session-identity"})
-            (assoc :cookies {:my-cookie "yum"})))
-       (-> (ok "a-token")
-           (assoc :identity {:user "jcm-identity"})
-           (assoc :session (assoc session :user "jcm-session"))
-           (assoc-in [:session :identity] {:user "jcm-session-identity"})
-           (assoc :cookies {:my-cookie "yum"}))))
+       (-> (ok)
+           (assoc-in [:session :identity] {:user "jcm-session-identity"}))))
 
-   (context "/api2" []
+   (GET "/logout" req
+     :summary "clear session and/or tokens and logout"
+     (-> (ok)
+         (assoc :session nil)))
+
+   (context "/api-tokens" []
      :coercion :spec
-     :auth-rules authenticated?
-     :current-user user
 
-     (GET "/foo" []
-       :return       ::x
+     (POST "/login" req
+     :summary "login and return a token"
+     :body-params [username :- ::username
+                   password :- ::password]
+     :return ::token-map
+     (let [{:keys [session]} req
+           token  (jwt/sign {:user 999} middleware/secret)]
+       (ok {:token token})))
+
+     (GET "/foo" req
+       :header-params [authorization :- ::token]
+       :middleware [middleware/wrap-token-auth]
+       :auth-rules check-auth-2? #_authenticated?
+       :current-user user
        :summary      "foo"
-       (ok 1)))
+       (comment
+         (log/debug "Got auth:" authorization)
+         (log/debug "For req keys:" (keys req))
+         (log/debug "For req identity?" (:identity req))
+         (log/debug "For user?" user))
+       (ok {:data 88})))
 
    (context "/api" []
      :tags ["thingie"]
      :coercion :spec
-     ;;:auth-rules authenticated?
-     ;;:current-user user
-     ;;:middleware [middleware-goes-here]
-     ;;:header-params [auth-headers-here-with-specs]
 
      (GET "/plus" []
        :return       ::total-map

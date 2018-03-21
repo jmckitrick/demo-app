@@ -1,7 +1,7 @@
 (ns demo-app.handler
   (:require [compojure.core :refer [routes wrap-routes]]
             [demo-app.layout :refer [error-page]]
-            [demo-app.routes.home :refer [home-routes]]
+            [demo-app.routes.home :refer [home-routes other-routes]]
             [demo-app.routes.services :refer [service-routes]]
             [demo-app.routes.websockets :refer [websocket-routes]]
             [compojure.route :as route]
@@ -24,6 +24,9 @@
 
     #'websocket-routes
     #'service-routes
+    (->
+     #'other-routes
+     (wrap-routes middleware/wrap-restricted))
 
     (route/not-found
      (:body

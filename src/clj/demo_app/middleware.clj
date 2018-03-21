@@ -17,6 +17,7 @@
             [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
             [buddy.auth.accessrules :refer [restrict]]
             [buddy.auth :refer [authenticated?]]
+            [buddy.auth.backends :as backends]
             [buddy.auth.backends.session :refer [session-backend]]
             [buddy.auth.backends.token :refer [jwe-backend]]
             [buddy.sign.jwt :refer [encrypt]]
@@ -107,7 +108,7 @@
 
 (def secret (random-bytes 32))
 
-(def token-backend
+(def token-backend-jwe
   (jwe-backend {:secret secret
                 :options {:alg :a256kw
                           :enc :a128gcm}}))
@@ -117,33 +118,43 @@
                 :exp (plus (now) (minutes 60))}]
     (encrypt claims secret {:alg :a256kw :enc :a128gcm})))
 
-(defn wrap-auth [handler]
+(defn my-authfn [request authdata]
+  (log/debug "Auth me!" authdata)
+  {:user "me!"})
+
+(defn my-authfn-jwe [authdata]
+  (log/debug "Auth me JWE!" authdata)
+  {:user "me!"})
+
+(def secret "--my-cool-secret--")
+
+(def token-backend
+  ;; Raw token that we need to decode and authenticate.
+  #_(buddy.auth.backends.token/token-backend {:authfn my-authfn})
+
+  ;; Standard jws token that must be unsigned first,
+  ;; and then we can authenticate.
+  (backends/jws {:secret secret
+                 :authfn my-authfn-jwe
+                 :token-name "Bearer"}))
+
+(defn wrap-token-auth [handler]
   (let [backend token-backend]
     (-> handler
         (wrap-authentication backend)
         (wrap-authorization backend))))
-
-(defn wrap-auths [handler]
-  (let [backends [session-backend token-backend]]
-    (-> handler
-        (wrap-authentication backends)
-        (wrap-authorization (first backends)))))
 
 (defn wrap-session-auth [handler]
   (let [backend (session-backend)]
     (-> handler
         (wrap-authentication backend)
         (wrap-authorization backend))))
-#_
-(defn my-auth-mw
-  [handler]
-  (wrap-authentication handler auth-backend))
 
 (defn wrap-base [handler]
   (-> ((:middleware defaults) handler)
-      ;;wrap-auth
+      ;;wrap-token-auth
       ;;wrap-auths
-      wrap-session-auth
+      ;;wrap-session-auth
       wrap-webjars
       wrap-flash
       (wrap-session {:cookie-attrs {:http-only true}})
