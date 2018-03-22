@@ -6,6 +6,7 @@
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [ring.util.http-response :refer :all]
+            [ring.util.http-status :as status]
             [clojure.tools.logging :as log]
             [mount.core :refer [defstate]]
             [compojure.api.sweet :refer :all]
@@ -17,7 +18,8 @@
             [buddy.sign.jwt :as jwt]
             [cheshire.core :as json]
             [clojure.spec.alpha :as s]
-            [spec-tools.spec :as spec]))
+            [spec-tools.spec :as spec]
+            [spec-tools.core :as score]))
 
 (defn access-error [_ _]
   (unauthorized {:error "unauthorized"}))
@@ -50,6 +52,7 @@
 (s/def ::x spec/int?)
 (s/def ::y spec/int?)
 (s/def ::z spec/number?)
+;;(s/def ::stuff (score/spec {:spec (s/keys :req-un [::x ::y]) :description "Stuff!!" :name "Name!!"}))
 (s/def ::total spec/int?)
 (s/def ::total-map (s/keys :req-un [::total]))
 
@@ -186,18 +189,22 @@
               :data {:info {:version "1.0.0"
                             :title "TST Agent API"
                             :description "Admin Services"}
-                     :tags [{:name "thingie" :description "Requires a header token for authorization"}
-                            {:name "thingie2" :description "Requires a header token for authorization"}]}}}
+                     :tags [{:name "demo" :description "Built-in demo of simple endpoints with coercion"}
+                            {:name "tokens" :description "Endpoints with tokens"}
+                            {:name "sessions" :description "Endpoints with sessions"}]}}}
 
    (GET "/authenticated" []
+     :summary "return user if session authenticated"
+     :tags ["sessions"]
      :middleware [middleware/wrap-session-auth]
      :auth-rules check-auth? ;;authenticated?
      :current-user user
      (ok {:user user}))
 
    (POST "/login" req
-     :coercion :spec
      :summary "login and start a session"
+     :tags ["sessions"]
+     :coercion :spec
      :body-params [username :- ::username
                    password :- ::password]
      (log/debug "Got params" (:params req))
@@ -212,11 +219,13 @@
            (assoc-in [:session :identity] {:user "jcm-session-identity"}))))
 
    (GET "/logout" req
-     :summary "clear session and/or tokens and logout"
+     :summary "clear session"
+     :tags ["sessions"]
      (-> (ok)
          (assoc :session nil)))
 
    (context "/api-tokens" []
+     :tags ["tokens"]
      :coercion :spec
 
      (POST "/login" req
@@ -233,7 +242,7 @@
        :middleware [middleware/wrap-token-auth]
        :auth-rules check-auth-2? #_authenticated?
        :current-user user
-       :summary      "foo"
+       :summary      "Get user data"
        (comment
          (log/debug "Got auth:" authorization)
          (log/debug "For req keys:" (keys req))
@@ -242,7 +251,7 @@
        (ok {:data 88})))
 
    (context "/api" []
-     :tags ["thingie"]
+     :tags ["demo"]
      :coercion :spec
 
      (GET "/plus" []
@@ -256,7 +265,6 @@
        :return      ::total
        :body-params [x :- ::x y :- ::y]
        :summary     "x-y with body-parameters."
-
        (ok (- x y)))
 
      (GET "/times/:x/:y" []
@@ -279,10 +287,12 @@
 
      (context "/data-plus" []
        (resource
-        {:get
+        {:description "Addition resource"
+         :get
          {:summary "data-driven plus with spec"
           :parameters {:query-params (s/keys :req-un [::x ::y])}
-          :responses {200 {:schema ::total-map}}
+          :responses {status/ok {:schema ::total-map :description "Response class description here"}
+                      status/internal-server-error {:schema string? :description "Error message"}}
           :handler (fn [{{:keys [x y]} :query-params}]
                      (ok {:total (+ x y)}))}})))
 

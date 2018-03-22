@@ -1,7 +1,6 @@
 (defproject demo-app "0.1.0-SNAPSHOT"
 
-  :description "FIXME: write description"
-  :url "http://example.com/FIXME"
+  :description "Demo Clojure web services with Re-frame"
 
   :dependencies [[buddy "2.0.0"]
                  [camel-snake-kebab "0.4.0"]
