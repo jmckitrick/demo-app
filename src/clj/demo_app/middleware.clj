@@ -152,9 +152,15 @@
 
 (defn wrap-base [handler]
   (-> ((:middleware defaults) handler)
+      ;; If we want to use different auth
+      ;; in different places, disable them
+      ;; here and apply as needed elsewhere.
       ;;wrap-token-auth
       ;;wrap-auths
       ;;wrap-session-auth
+      ;; We normally wrap-formats here,
+      ;; but this has been moved to
+      ;; muuntaja for the web service endpoints.
       wrap-webjars
       wrap-flash
       (wrap-session {:cookie-attrs {:http-only true}})

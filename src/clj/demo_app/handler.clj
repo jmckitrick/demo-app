@@ -17,13 +17,16 @@
   :start
   (middleware/wrap-base
    (routes
+
     (->
      #'home-routes
      (wrap-routes middleware/wrap-csrf)
      (wrap-routes middleware/wrap-formats))
 
     #'websocket-routes
+
     #'service-routes
+
     (->
      #'other-routes
      (wrap-routes middleware/wrap-restricted))
