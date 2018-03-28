@@ -1,6 +1,8 @@
 (ns demo-app.db.core
   (:require
     [clj-time.jdbc]
+    [clojure.edn :as edn]
+    [clojure.java.io :as io]
     [clojure.java.jdbc :as jdbc]
     [conman.core :as conman]
     [demo-app.config :refer [env]]
@@ -11,11 +13,11 @@
             BatchUpdateException
             PreparedStatement]))
 
-(defstate ^:dynamic *db*
-  :start (conman/connect! {:jdbc-url (env :database-url)})
-  :stop (conman/disconnect! *db*))
+;; (defstate ^:dynamic *db*
+;;   :start (conman/connect! {:jdbc-url (env :database-url)})
+;;   :stop (conman/disconnect! *db*))
 
-(conman/bind-connection *db* "sql/queries.sql")
+;; (conman/bind-connection *db* "sql/queries.sql")
 
 (defn result-one-snake->kebab
   [this result options]
@@ -38,3 +40,68 @@
 
 (defmethod hugsql.core/hugsql-result-fn :many [sym]
   'demo-app.db.core/result-many-snake->kebab)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; fake db for graphql
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defstate db
+  :start (-> (io/resource "graphql/cgg-data.edn")
+             slurp
+             edn/read-string
+             atom))
+
+(defn new-db
+  []
+  {:db {:data db}})
+
+(defn find-game-by-id
+  [db game-id]
+  (->> db
+       :data
+       deref
+       :games
+       (filter #(= game-id (:id %)))
+       first))
+
+(defn find-member-by-id
+  [db member-id]
+  (->> db
+       :data
+       deref
+       :members
+       (filter #(= member-id (:id %)))
+       first))
+
+(defn list-designers-for-game
+  [db game-id]
+  (let [designers (:designers (find-game-by-id db game-id))]
+    (->> db
+         :data
+         deref
+         :designers
+         (filter #(contains? designers (:id %))))))
+
+(defn list-games-for-designer
+  [db designer-id]
+  (->> db
+       :data
+       deref
+       :games
+       (filter #(-> % :designers (contains? designer-id)))))
+
+(defn list-ratings-for-game
+  [db game-id]
+  (->> db
+       :data
+       deref
+       :ratings
+       (filter #(= game-id (:game_id %)))))
+
+(defn list-ratings-for-member
+  [db member-id]
+  (->> db
+       :data
+       deref
+       :ratings
+       (filter #(= member-id (:member_id %)))))
