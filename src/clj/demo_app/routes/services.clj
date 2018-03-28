@@ -56,6 +56,10 @@
 (s/def ::token spec/string?)
 (s/def ::token-map (s/keys :req-un [::token]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; graphql
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn get-hero [context args value]
   (let [data  [{:id 1000
                :name "Luke"
@@ -67,15 +71,31 @@
                :appears_in ["EMPIRE" "JEDI"]}]]
     (first data)))
 
+(defn resolve-game-by-id
+  [games-map context args value]
+  (let [{:keys [id]} args]
+    (get games-map id)))
+
+(defn resolver-map
+  []
+  (let [cgg-data (-> (io/resource "graphql/cgg-data.edn")
+                     slurp
+                     edn/read-string)
+        games-map (->> cgg-data
+                       :games
+                       (reduce #(assoc %1 (:id %2) %2) {}))]
+    {:query/game-by-id (partial resolve-game-by-id games-map)}))
+
 (defstate compiled-schema
   :start
-  (-> "graphql/schema.edn"
-      #_"graphql/cgg-schema.edn"
+  (-> #_"graphql/schema.edn"
+      "graphql/cgg-schema.edn"
       io/resource
       slurp
       edn/read-string
-      (attach-resolvers {:get-hero get-hero
+      #_(attach-resolvers {:get-hero get-hero
                          :get-droid (constantly {})})
+      (attach-resolvers (resolver-map))
       schema/compile))
 
 (defn format-params [query]
@@ -87,6 +107,10 @@
           context nil]
     (-> (lacinia/execute compiled-schema query vars context)
         (json/generate-string))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; api definitions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def service-routes
   (api
