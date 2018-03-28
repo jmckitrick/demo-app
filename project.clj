@@ -8,6 +8,7 @@
                  [cider/cider-nrepl "0.16.0"]
                  [clj-time "0.14.2"]
                  [cljs-ajax "0.7.3"]
+                 [com.walmartlabs/lacinia "0.25.0"]
                  [compojure "1.6.0"]
                  [conman "0.7.6"]
                  [cprop "0.1.11"]

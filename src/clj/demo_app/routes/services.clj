@@ -1,6 +1,12 @@
 (ns demo-app.routes.services
-  (:require [ring.util.http-response :refer :all]
+  (:require [com.walmartlabs.lacinia.util :refer [attach-resolvers]]
+            [com.walmartlabs.lacinia.schema :as schema]
+            [com.walmartlabs.lacinia :as lacinia]
+            [clojure.edn :as edn]
+            [clojure.java.io :as io]
+            [ring.util.http-response :refer :all]
             [clojure.tools.logging :as log]
+            [mount.core :refer [defstate]]
             [compojure.api.sweet :refer :all]
             [demo-app.middleware :as middleware]
             [compojure.api.meta :refer [restructure-param]]
@@ -49,6 +55,38 @@
 (s/def ::password spec/string?)
 (s/def ::token spec/string?)
 (s/def ::token-map (s/keys :req-un [::token]))
+
+(defn get-hero [context args value]
+  (let [data  [{:id 1000
+               :name "Luke"
+               :home_planet "Tatooine"
+               :appears_in ["NEWHOPE" "EMPIRE" "JEDI"]}
+              {:id 2000
+               :name "Lando Calrissian"
+               :home_planet "Socorro"
+               :appears_in ["EMPIRE" "JEDI"]}]]
+    (first data)))
+
+(defstate compiled-schema
+  :start
+  (-> "graphql/schema.edn"
+      #_"graphql/cgg-schema.edn"
+      io/resource
+      slurp
+      edn/read-string
+      (attach-resolvers {:get-hero get-hero
+                         :get-droid (constantly {})})
+      schema/compile))
+
+(defn format-params [query]
+  (let [parsed (json/parse-string query)] ;;-> placeholder - need to ensure query meets graphql syntax
+     (str "query { hero(id: \"1000\") { name appears_in }}")))
+
+(defn execute-request [query]
+    (let [vars nil
+          context nil]
+    (-> (lacinia/execute compiled-schema query vars context)
+        (json/generate-string))))
 
 (def service-routes
   (api
@@ -155,4 +193,21 @@
           :parameters {:query-params (s/keys :req-un [::x ::y])}
           :responses {200 {:schema ::total-map}}
           :handler (fn [{{:keys [x y]} :query-params}]
-                     (ok {:total (+ x y)}))}})))))
+                     (ok {:total (+ x y)}))}})))
+
+   (context "/api-graphql" []
+     :tags ["thingie"]
+
+     (GET "/" []
+      :tags ["graphql"]
+      :query-params [query :- String, {variable :- String nil}]
+      :summary "GraphQL over REST. query: GraphQL query e.g {hero{name appears_in}}. variable: defaults to nil."
+      (let [result (lacinia/execute compiled-schema query variable nil)]
+        (if (-> result :errors seq)
+          (bad-request result)
+          (ok result))) )
+
+    (POST "/" [:as {body :body}]
+      :tags ["graphql"]
+      :summary "entry point for GraphiQL queries"
+      (ok (execute-request (slurp body)))))))
