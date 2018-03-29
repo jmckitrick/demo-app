@@ -1,14 +1,17 @@
 (ns demo-app.db.core
   (:require
-    [clj-time.jdbc]
-    [clojure.edn :as edn]
-    [clojure.java.io :as io]
-    [clojure.java.jdbc :as jdbc]
-    [conman.core :as conman]
-    [demo-app.config :refer [env]]
-    [mount.core :refer [defstate]]
-    [camel-snake-kebab.extras :refer [transform-keys]]
-    [camel-snake-kebab.core :refer [->kebab-case-keyword]])
+   [clj-time.jdbc]
+   [clojure.edn :as edn]
+   [clojure.java.io :as io]
+   [clojure.java.jdbc :as jdbc]
+   [conman.core :as conman]
+   [demo-app.config :refer [env]]
+   [mount.core :refer [defstate]]
+   [postgres.async :refer [open-db query! close-db!]]
+   [clojure.core.async :refer [<!!]]
+   [camel-snake-kebab.extras :refer [transform-keys]]
+   [camel-snake-kebab.core :refer [->kebab-case-keyword]]
+   [clojure.tools.logging :as log])
   (:import [java.sql
             BatchUpdateException
             PreparedStatement]))
@@ -46,36 +49,51 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defstate db
-  :start (-> (io/resource "graphql/cgg-data.edn")
-             slurp
-             edn/read-string
-             atom))
+  :start (open-db {:hostname "localhost"
+                   :database "cggdb"
+                   :username "cgg_role"
+                   :password "lacinia"
+                   :port 25432})
+  :stop (close-db! db))
 
 (defn new-db
   []
-  {:db {:data db}})
+  {:db {:conn db}})
+
+(defn ^:private take!
+  [ch]
+  (log/info "Private take on ch" ch)
+  (let [v (<!! ch)]
+    (if (instance? Throwable v)
+      (throw v)
+      v)))
 
 (defn find-game-by-id
   [db game-id]
-  (->> db
-       :data
-       deref
-       :games
-       (filter #(= game-id (:id %)))
-       first))
+  (-> (query! (:conn db)
+              ["SELECT g.game_id, g.name, g.summary, g.min_players, g.max_players, g.created_at, g.updated_at,
+                d.name, d.uri AS url
+                FROM board_game g
+                LEFT JOIN designer_to_game dg ON g.game_id = dg.game_id
+                LEFT JOIN designer d ON d.designer_id = dg.designer_id
+                WHERE g.game_id = $1
+               " game-id])
+      take!
+      first))
 
 (defn find-member-by-id
   [db member-id]
-  (->> db
-       :data
-       deref
-       :members
-       (filter #(= member-id (:id %)))
-       first))
+  (-> (query! (:conn db)
+              ["select member_id, name AS member_name, created_at, updated_at
+                from member where member_id = $1" member-id])
+      take!
+      first))
 
 (defn list-designers-for-game
+  "designer_id, name, uri"
   [db game-id]
-  (let [designers (:designers (find-game-by-id db game-id))]
+  (let [game (find-game-by-id db game-id)
+        designers nil]
     (->> db
          :data
          deref
