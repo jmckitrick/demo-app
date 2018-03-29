@@ -16,11 +16,11 @@
             BatchUpdateException
             PreparedStatement]))
 
-;; (defstate ^:dynamic *db*
-;;   :start (conman/connect! {:jdbc-url (env :database-url)})
-;;   :stop (conman/disconnect! *db*))
+(defstate ^:dynamic *db*
+  :start (conman/connect! {:jdbc-url (env :database-url)})
+  :stop (conman/disconnect! *db*))
 
-;; (conman/bind-connection *db* "sql/queries.sql")
+(conman/bind-connection *db* "sql/queries.sql")
 
 (defn result-one-snake->kebab
   [this result options]
@@ -45,7 +45,7 @@
   'demo-app.db.core/result-many-snake->kebab)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; fake db for graphql
+;; db for graphql
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defstate db
