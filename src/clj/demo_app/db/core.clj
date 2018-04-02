@@ -71,15 +71,22 @@
 (defn find-game-by-id
   [db game-id]
   (-> (query! (:conn db)
-              ["SELECT g.game_id, g.name, g.summary, g.min_players, g.max_players, g.created_at, g.updated_at,
-                d.name, d.uri AS url
+              ["SELECT g.game_id, g.name, g.summary, g.min_players, g.max_players, g.created_at, g.updated_at
+                -- d.name, d.uri AS url
                 FROM board_game g
-                LEFT JOIN designer_to_game dg ON g.game_id = dg.game_id
-                LEFT JOIN designer d ON d.designer_id = dg.designer_id
+                -- LEFT JOIN designer_to_game dg ON g.game_id = dg.game_id
+                -- LEFT JOIN designer d ON d.designer_id = dg.designer_id
                 WHERE g.game_id = $1
                " game-id])
       take!
       first))
+
+(defn find-all-games
+  [db]
+  (-> (query! (:conn db)
+              ["SELECT *
+                FROM board_game"])
+      take!))
 
 (defn find-member-by-id
   [db member-id]
@@ -92,13 +99,15 @@
 (defn list-designers-for-game
   "designer_id, name, uri"
   [db game-id]
-  (let [game (find-game-by-id db game-id)
-        designers nil]
-    (->> db
-         :data
-         deref
-         :designers
-         (filter #(contains? designers (:id %))))))
+  (log/info "----> game id" game-id)
+  (let [game (find-game-by-id db game-id)]
+    (-> (query! (:conn db)
+                ["SELECT d.designer_id, d.name, d.uri AS url
+                  FROM designer d
+                  LEFT JOIN designer_to_game dg ON d.designer_id = dg.designer_id
+                  LEFT JOIN board_game g ON dg.game_id = g.game_id
+                  WHERE g.game_id = $1" game-id])
+        take!)))
 
 (defn list-games-for-designer
   [db designer-id]

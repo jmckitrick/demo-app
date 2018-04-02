@@ -81,6 +81,11 @@
   (fn [_ args _]
     (db/find-game-by-id db (:id args))))
 
+(defn all-games
+  [db]
+  (fn [_ _ _]
+    (db/find-all-games db)))
+
 (defn member-by-id
   [db]
   (fn [_ args _]
@@ -115,8 +120,11 @@
 
 (defn board-game-designers
   [db]
-  (fn [_ _ board-game]
-    (db/list-designers-for-game db (:id board-game))))
+  (fn [context args board-game]
+    #_(log/info "----> context" context)
+    #_(log/info "----> args" args)
+    #_(log/info "----> board game" board-game)
+    (db/list-designers-for-game db (:game_id board-game))))
 
 (defn designer-games
   [db]
@@ -149,6 +157,7 @@
   (let [db (:db component)]
     {:query/game-by-id (game-by-id db)
      :query/member-by-id (member-by-id db)
+     :query/all-games (all-games db)
      :mutation/rate-game (rate-game db)
      :BoardGame/designers (board-game-designers db)
      :BoardGame/rating-summary (rating-summary db)

@@ -71,7 +71,12 @@
    :description "Select a ClojureGameGeek Member by their unique id, if it exists."
    :args
    {:id {:type (non-null Int)}}
-   :resolve :query/member-by-id}}
+   :resolve :query/member-by-id}
+
+  :all_games
+  {:type (list :BoardGame)
+   :description "All board games"
+   :resolve :query/all-games}}
 
  :mutations
  {:rate_game
